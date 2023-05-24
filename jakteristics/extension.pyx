@@ -1,8 +1,6 @@
 # cython: language_level=3
 # distutils: language = c++
 
-# TODO Add test cases for graph geodesic distance where max_graph_edge_length < search_radius.
-
 import numpy as np
 import multiprocessing
 
@@ -66,11 +64,10 @@ def compute_features(
         int return_length = int(False)
 
         bint compute_graph_distance
-        unsigned int start_node_id, max_edge_weight_count, neighbor_point_id_offset, row, column, coordinate_index, edge_weight_id, threshold_length, row_index, path_index
+        unsigned int start_node_id, max_edge_weight_count, neighbor_point_id_offset, row, column, coordinate_index, edge_weight_id, threshold_length, path_index
         double edge_weight
-        # TODO Check whether continous arrays make more sense.
-        double [:, :] edge_weights, edge_vector, shortest_edge_weights, new_array
-        unsigned int [:, :] over_threshold_indices
+        double [:, ::1] edge_weights, edge_vector, shortest_edge_weights, new_array
+        unsigned int [:, ::1] over_threshold_indices
 
     if not points.shape[1] == 3:
         raise ValueError("You must provide an (n x 3) numpy array.")
@@ -139,7 +136,6 @@ def compute_features(
                     neighbor_points[k, neighbor_point_id_offset + j] = kdtree.cself.raw_data[neighbor_id * 3 + k]
 
             if compute_graph_distance:
-                # TODO Check why this is setting every weight twice.
                 for row in range(n_neighbors_at_id):
                     for column in range(n_neighbors_at_id):
 
@@ -150,20 +146,14 @@ def compute_features(
                             edge_vector[thread_id, coordinate_index] = (neighbor_points[coordinate_index, neighbor_point_id_offset + row]
                                                                         - neighbor_points[coordinate_index, neighbor_point_id_offset + column])
 
-                        # TODO Find a more performant way.
-                        edge_weight_id = 0
-                        for row_index in range(row + 1):
-                            edge_weight_id = edge_weight_id + row_index
-                        edge_weight_id = edge_weight_id + column - row
-
-                        # TODO Squared Euclidean norm instead of 'normal' Euclidean norm for better performance (probably won't work).
                         edge_weight = sqrt(edge_vector[thread_id, 0] * edge_vector[thread_id, 0]
                                             + edge_vector[thread_id, 1] * edge_vector[thread_id, 1]
                                             + edge_vector[thread_id, 2] * edge_vector[thread_id, 2])
 
                         if edge_weight > max_graph_edge_length:
                             edge_weight = INFINITY
-                        
+
+                        edge_weight_id = (row * (row + 1)) // 2 + (column - row) # sum of an arithmetic series        
                         edge_weights[thread_id, edge_weight_id] = edge_weight
 
                 # TODO This is weird. Would be great if [0] is the start node in the first place.
@@ -274,13 +264,9 @@ cdef inline double[:] dijkstra_all_shortest_edge_weights(unsigned int start_node
         for candidate_node_id in range(node_count):
             if queue[candidate_node_id] and queue_node_id != candidate_node_id:
 
-                # TODO Find a more performant way.
                 row = max(candidate_node_id, queue_node_id)
                 column = min(candidate_node_id, queue_node_id)
-                edge_weight_id = 0
-                for row_index in range(row + 1):
-                    edge_weight_id = edge_weight_id + row_index
-                edge_weight_id = edge_weight_id + column - row
+                edge_weight_id = (row * (row + 1)) // 2 + (column - row) # sum of an arithmetic series
 
                 candidate_weight = shortest_edges_weights[queue_node_id] + edge_weights[edge_weight_id]
                 if candidate_weight < shortest_edges_weights[candidate_node_id]:
