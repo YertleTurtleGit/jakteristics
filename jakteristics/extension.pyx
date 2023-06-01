@@ -346,6 +346,8 @@ cdef inline void compute_features_from_eigenvectors(
         out[out_map.at(b"PCA1")] = l1 / eigenvalue_sum
     if out_map.count(b"PCA2"):
         out[out_map.at(b"PCA2")] = l2 / eigenvalue_sum
+    if out_map.count(b"PCA3"):
+        out[out_map.at(b"PCA3")] = l3 / eigenvalue_sum
     # Surface variance is how the third component contributes to the sum of the eigenvalues
     if out_map.count(b"surface_variation"):
         out[out_map.at(b"surface_variation")] = l3 / eigenvalue_sum

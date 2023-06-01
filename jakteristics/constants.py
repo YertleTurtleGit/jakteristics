@@ -7,6 +7,7 @@ FEATURE_NAMES = [
     "linearity",
     "PCA1",
     "PCA2",
+    "PCA3",
     "surface_variation",
     "sphericity",
     "verticality",
